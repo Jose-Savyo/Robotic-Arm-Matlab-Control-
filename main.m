@@ -24,8 +24,14 @@ end
 uicontrol('Style', 'pushbutton', 'String', 'Home', ...
           'Position', [50, 450 - 7 * 60, 80, 40], ...
           'ForegroundColor', [0.5 0 0.5], 'FontSize', 20, ...
-          'Callback', @(src, ~) resetAllMotors(arduinoObj));
+          'Callback', @(src, ~) resetAllMotors(arduinoObj, sliders));
 
+% Botão "Zerar" para redefinir todas as posições como zero
+uicontrol('Style', 'pushbutton', 'String', 'Zerar', ...
+          'Position', [150, 450 - 7 * 60, 80, 40], ...
+          'ForegroundColor', 'r', 'FontSize', 20, ...
+          'Callback', @(src, ~) zeroAllMotors(arduinoObj, sliders));
+     
 % Configura o fechamento seguro da comunicação serial
 f.CloseRequestFcn = @(~, ~) closeSerial(arduinoObj);
 
@@ -49,9 +55,36 @@ function updateMotor(arduinoObj, position, motorIndex)
 end
 
 % Função para resetar todos os motores
-function resetAllMotors(arduinoObj)
+function resetAllMotors(arduinoObj, sliders)
     for i = 1:6
         updateMotor(arduinoObj, 0, i); % Envia posição zero para cada motor
+    end
+    
+    % Reseta todos os sliders para 0
+        for i = 1:length(sliders)
+            set(sliders(i), 'Value', 0);
+        end
+    
+end
+
+% Função para enviar o comando de zerar e resetar sliders
+function zeroAllMotors(arduinoObj, sliders)
+    % Verifica se o objeto serial está aberto
+    if strcmp(arduinoObj.Status, 'closed')
+        fopen(arduinoObj);
+    end
+
+    % Envia o comando "ZERO" para o Arduino
+    try
+        fprintf(arduinoObj, "ZERO\n");
+        disp("Posições zeradas!");
+
+        % Reseta todos os sliders para 0
+        for i = 1:length(sliders)
+            set(sliders(i), 'Value', 0);
+        end
+    catch
+        warning('Falha ao enviar o comando ZERO ao Arduino.');
     end
 end
 

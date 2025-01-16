@@ -30,6 +30,16 @@ void loop() {
 }
 
 void parseCommand(String command) {
+    // Comando para zerar todas as posições
+    if (command == "ZERO") {
+        for (int i = 0; i < 6; i++) {
+            currentPositions[i] = 0; // Reseta a posição de todos os motores
+        }
+        Serial.println("Posições zeradas!");
+        return;
+    }
+
+    // Comando padrão de posição
     int commaIndex = command.indexOf(',');
     if (command.charAt(0) != 'P' || commaIndex == -1) {
         return; // Comando inválido
@@ -41,6 +51,7 @@ void parseCommand(String command) {
         moveToPosition(motorIndex, targetPosition);
     }
 }
+
 
 void moveToPosition(int motorIndex, float targetPosition) {
     float stepsPerDegree = stepsPerRevolution / 360.0;
