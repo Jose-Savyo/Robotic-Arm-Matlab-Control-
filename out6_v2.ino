@@ -8,8 +8,11 @@
 const int dirPins[6] = {13, 12, 11, 10, 9, 8}; // Pinos DIR para os motores 1 a 6
 const int stepPins[6] = {7, 6, 5, 4, 3, 2};    // Pinos STEP para os motores 1 a 6
 
-const int stepsPerRevolution = 128000; // Passos por volta (ajuste conforme seu motor)
-float currentPositions[6] = {0, 0, 0, 0, 0, 0}; // Posições atuais em graus
+const int stepsPerRevolution = 7600; // Ajuste conforme seu motor e redução
+float currentPositions[6] = {0, 0, 0, 0, 0, 0}; // Posições atuais
+const int maxDelay = 500; // Atraso inicial (mais lento)
+const int minDelay = 50;  // Atraso mínimo (mais rápido)
+const int rampSteps = 50; // Número de passos para completar a rampa
 
 void setup() {
     for (int i = 0; i < 6; i++) {
@@ -20,50 +23,61 @@ void setup() {
 }
 
 void loop() {
-    // Verifica se há dados disponíveis na serial
     if (Serial.available() > 0) {
         String command = Serial.readStringUntil('\n'); // Lê o comando até o '\n'
         parseCommand(command);
     }
 }
 
-// Função para interpretar o comando recebido
 void parseCommand(String command) {
-    if (command.charAt(0) == 'P') { // Comando de posição
-        int commaIndex = command.indexOf(',');
-        int motorIndex = command.substring(1, commaIndex).toInt() - 1; // Índice do motor (0 a 5)
-        float targetPosition = command.substring(commaIndex + 1).toFloat(); // Posição alvo em graus
+    int commaIndex = command.indexOf(',');
+    if (command.charAt(0) != 'P' || commaIndex == -1) {
+        return; // Comando inválido
+    }
+    int motorIndex = command.substring(1, commaIndex).toInt() - 1; // Índice do motor
+    float targetPosition = command.substring(commaIndex + 1).toFloat(); // Posição alvo
 
-        if (motorIndex >= 0 && motorIndex < 6) {
-            moveToPosition(motorIndex, targetPosition);
-        }
+    if (motorIndex >= 0 && motorIndex < 6) {
+        moveToPosition(motorIndex, targetPosition);
     }
 }
 
-// Função para mover o motor até a posição desejada
 void moveToPosition(int motorIndex, float targetPosition) {
-    float stepsPerDegree = stepsPerRevolution / 360.0; // Passos por grau
-    int targetSteps = round(targetPosition * stepsPerDegree); // Passos alvo
-    int currentSteps = round(currentPositions[motorIndex] * stepsPerDegree); // Passos atuais
+    float stepsPerDegree = stepsPerRevolution / 360.0;
+    int targetSteps = round(targetPosition * stepsPerDegree);
+    int currentSteps = round(currentPositions[motorIndex] * stepsPerDegree);
 
-    int stepsToMove = targetSteps - currentSteps; // Diferença em passos
+    int stepsToMove = targetSteps - currentSteps;
+    if (stepsToMove == 0) return; // Sem movimento necessário
 
-    if (stepsToMove != 0) {
-        digitalWrite(dirPins[motorIndex], stepsToMove > 0 ? HIGH : LOW); // Define a direção
-        stepsToMove = abs(stepsToMove);
+    digitalWrite(dirPins[motorIndex], stepsToMove > 0 ? HIGH : LOW); // Define a direção
+    stepsToMove = abs(stepsToMove);
 
-        for (int i = 0; i < stepsToMove; i++) {
-            digitalWrite(stepPins[motorIndex], HIGH);
-            delayMicroseconds(50); // Ajuste para velocidade
-            digitalWrite(stepPins[motorIndex], LOW);
-            delayMicroseconds(50);
-        }
+    int currentDelay = maxDelay;
 
-        // Atualiza a posição atual
-        currentPositions[motorIndex] = targetPosition;
+    // Aceleração
+    for (int i = 0; i < rampSteps && i < stepsToMove / 2; i++) {
+        currentDelay = maxDelay - pow(i, 1.5) * (maxDelay - minDelay) / pow(rampSteps, 1.5);
+        singleStep(motorIndex, currentDelay);
     }
+
+    // Velocidade constante
+    for (int i = rampSteps; i < stepsToMove - rampSteps; i++) {
+        singleStep(motorIndex, minDelay);
+    }
+
+    // Desaceleração
+    for (int i = rampSteps; i > 0 && stepsToMove > rampSteps; i--) {
+        currentDelay = maxDelay - pow(i, 1.5) * (maxDelay - minDelay) / pow(rampSteps, 1.5);
+        singleStep(motorIndex, currentDelay);
+    }
+
+    currentPositions[motorIndex] = targetPosition; // Atualiza a posição atual
 }
 
-
-
-
+void singleStep(int motorIndex, int delayTime) {
+    digitalWrite(stepPins[motorIndex], HIGH);
+    delayMicroseconds(delayTime);
+    digitalWrite(stepPins[motorIndex], LOW);
+    delayMicroseconds(delayTime);
+}

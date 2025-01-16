@@ -3,7 +3,7 @@ close all;
 clc;
 
 % Configura a conexão com o Arduino
-arduinoObj = serial('COM10', 'BaudRate', 9600); % Substitua COM6 pela porta correta
+arduinoObj = serial('COM6', 'BaudRate', 9600); % Substitua COM10 pela porta correta
 fopen(arduinoObj);
 
 % Cria a interface gráfica
@@ -15,26 +15,16 @@ sliders = gobjects(1, 6); % Armazena os sliders
 for i = 1:6
     uicontrol('Style', 'text', 'Position', [50, 450 - i * 60, 100, 20], ...
               'String', ['Motor ' num2str(i)], 'FontSize', 12);
-    sliders(i) = uicontrol('Style', 'slider', 'Min', -1000, 'Max', 1000, 'Value', 0, ...
+    sliders(i) = uicontrol('Style', 'slider', 'Min', -360, 'Max', 360, 'Value', 0, ...
                            'Position', [150, 450 - i * 60, 600, 20], ...
                            'Callback', @(src, ~) updateMotor(arduinoObj, src.Value, i));
 end
 
-% Botão home
-uicontrol('Style', 'text', 'Position', [50, 450-7*60, 100, 20], 'ForegroundColor', [0.5 0 0.5], 'FontSize', 15);
-home_bottun = uicontrol('Style', 'pushbutton', 'String', 'Home', ...
-                        'Position', [50, 450-7*60, 80, 40], ...
-                        'ForegroundColor', [0.5 0 0.5], 'FontSize', 20, ...
-                        'Callback', @(src, ~) updateMotor(arduinoObj, 0, 6));                    
-%     
-% function home()
-%     updateMotor(arduinoObj, 0, 6)
-%     updateMotor(arduinoObj, 0, 5)
-%     updateMotor(arduinoObj, 0, 4)
-%     updateMotor(arduinoObj, 0, 3)
-%     updateMotor(arduinoObj, 0, 2)
-%     updateMotor(arduinoObj, 0, 1)
-% end
+% Botão "Home" para resetar todos os motores
+uicontrol('Style', 'pushbutton', 'String', 'Home', ...
+          'Position', [50, 450 - 7 * 60, 80, 40], ...
+          'ForegroundColor', [0.5 0 0.5], 'FontSize', 20, ...
+          'Callback', @(src, ~) resetAllMotors(arduinoObj));
 
 % Configura o fechamento seguro da comunicação serial
 f.CloseRequestFcn = @(~, ~) closeSerial(arduinoObj);
@@ -58,7 +48,12 @@ function updateMotor(arduinoObj, position, motorIndex)
     end
 end
 
-
+% Função para resetar todos os motores
+function resetAllMotors(arduinoObj)
+    for i = 1:6
+        updateMotor(arduinoObj, 0, i); % Envia posição zero para cada motor
+    end
+end
 
 % Função para fechar a comunicação serial
 function closeSerial(arduinoObj)
@@ -67,5 +62,3 @@ function closeSerial(arduinoObj)
     clear arduinoObj; % Limpa a variável do espaço de trabalho
     delete(gcf); % Fecha a interface gráfica
 end
-
-
