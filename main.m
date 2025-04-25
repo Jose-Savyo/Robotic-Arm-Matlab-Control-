@@ -1,10 +1,10 @@
 clear all;
-close all;
+% close all;
 clc;
 
 % Configura a conexão com o Arduino
-arduinoObj = serial('COM6', 'BaudRate', 9600); % Substitua COM10 pela porta correta
-fopen(arduinoObj);
+% arduinoObj = serial('COM14', 'BaudRate', 9600); % Substitua COM10 pela porta correta
+% fopen(arduinoObj);
 
 % Variável global para armazenar os pontos
 global savedPoints;
@@ -15,14 +15,28 @@ f = figure('Name', 'Controle de Posição dos Motores', 'NumberTitle', 'off', ...
            'Position', [100, 100, 800, 450]);
 
 % Sliders para controlar a posição dos motores
-sliders = gobjects(1, 6); % Armazena os sliders
-for i = 1:6
+sliders = gobjects(1, 4); % Armazena os sliders
+for i = 1:4
     uicontrol('Style', 'text', 'Position', [50, 450 - i * 60, 100, 20], ...
               'String', ['Motor ' num2str(i)], 'FontSize', 12);
     sliders(i) = uicontrol('Style', 'slider', 'Min', -38*360, 'Max', 38*360, 'Value', 0, ...
                            'Position', [150, 450 - i * 60, 600, 20], ...
                            'Callback', @(src, ~) updateMotor(arduinoObj, src.Value, i));
 end
+
+% Botão para mover o servo para a posição 0
+uicontrol('Style', 'pushbutton', 'String', 'Garra Aberta', ...
+          'Position', [800, 150, 120, 40], ...
+          'FontSize', 12, ...
+          'Callback', @(src, ~) moveServo(arduinoObj, 0));
+
+% Botão para mover o servo para a posição 180
+uicontrol('Style', 'pushbutton', 'String', 'Garra Fechada', ...
+          'Position', [800, 100, 120, 40], ...
+          'FontSize', 12, ...
+          'Callback', @(src, ~) moveServo(arduinoObj, 180));
+
+
 
 % Botão "Home" para resetar todos os motores
 uicontrol('Style', 'pushbutton', 'String', 'Home', ...
@@ -131,7 +145,7 @@ function executePoints(arduinoObj)
     for pointIndex = 1:3
         if any(savedPoints(pointIndex, :)) % Verifica se o ponto foi salvo
             fprintf('Movendo para o Ponto %d: %s\n', pointIndex, mat2str(savedPoints(pointIndex, :)));
-            for motorIndex = 1:6
+            for motorIndex = 1:4
                 try
                     fprintf(arduinoObj, sprintf('P%d,%d\n', motorIndex, round(savedPoints(pointIndex, motorIndex))));
                 catch
@@ -142,6 +156,23 @@ function executePoints(arduinoObj)
         end
     end
 end
+
+% Função para mover o servo para uma posição específica
+function moveServo(arduinoObj, angle)
+    % Verifica se o objeto serial está aberto
+    if strcmp(arduinoObj.Status, 'closed')
+        fopen(arduinoObj);
+    end
+
+    % Envia o comando para o Arduino
+    try
+        fprintf(arduinoObj, sprintf('S%d\n', angle));
+        disp(['Servo movido para: ', num2str(angle), ' graus']);
+    catch
+        warning('Falha ao enviar comando para o servo.');
+    end
+end
+
 
 
 % Função para fechar a comunicação serial
